@@ -5,521 +5,792 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wer bin ich? - Clash Royale Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #1a202c; /* Dunkelblauer Hintergrund */
-            background-image: url('https://placehold.co/1920x1080/1a202c/3c3c3c.png&text=+');
+            background-color: #1a202c;
+            background-image: url('https://placehold.co/1920x1080/1a202c/3c3c3c.png');
             background-size: cover;
             background-position: center;
         }
-        .clash-font {
-            font-family: 'Clash Display', sans-serif;
-        }
-        /* Flip-Card Animation */
-        .flip-card {
-            perspective: 1000px;
-        }
-        .flip-card-inner {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            transition: transform 0.6s;
-            transform-style: preserve-3d;
-        }
-        .flip-card.is-flipped .flip-card-inner {
-            transform: rotateY(180deg);
-        }
-        .flip-card-front, .flip-card-back {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 0.75rem;
-        }
-        .flip-card-back {
-            transform: rotateY(180deg);
-            padding: 8px;
-        }
-        .rarity-common { border: 2px solid #a0aec0; }
-        .rarity-rare { border: 2px solid #f6ad55; }
-        .rarity-epic { border: 2px solid #b794f4; }
-        .rarity-legendary { border: 2px solid #f6e05e; }
-        .rarity-champion { border: 2px solid #81e6d9; }
-        
-        #cardImage {
-            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
-        }
-        #closeStatsButton {
-            font-size: 2rem;
-            line-height: 1;
-        }
-        #autocomplete-list div:last-child {
-            border-bottom: none;
-        }
+        .clash-font { font-family: 'Clash Display', sans-serif; }
+        .flip-card { perspective: 1000px; }
+        .flip-card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+        .flip-card.is-flipped .flip-card-inner { transform: rotateY(180deg); }
+        .flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border-radius: 0.75rem; }
+        .flip-card-back { transform: rotateY(180deg); padding: 8px; }
+        #cardImage { transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out; }
+        #closeStatsButton, #closeAchievementsButton, #closeTimeAttackResultsButton { font-size: 2rem; line-height: 1; }
+        #autocomplete-list div:last-child { border-bottom: none; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+        .animate-shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes toast-in-out { 0% { transform: translateY(-100%); opacity: 0; } 10% { transform: translateY(0); opacity: 1; } 90% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-100%); opacity: 0; } }
+        .toast-notification { animation: toast-in-out 4s ease-in-out forwards; }
+        .achievement-unlocked { border-left: 4px solid #f6e05e; }
+        .achievement-locked { opacity: 0.6; }
+        .best-round { background-color: rgba(246, 224, 94, 0.15); border-left: 4px solid #f6e05e; }
+        .hint-cooldown { pointer-events: none; opacity: 0.5; }
+        #countdownOverlay { transition: opacity 0.5s ease-in-out; }
     </style>
     <link rel="manifest" href="manifest.json">
 </head>
 <body class="text-white min-h-screen flex items-center justify-center p-4">
 
-    <div class="w-full max-w-4xl mx-auto bg-gray-800 bg-opacity-80 backdrop-blur-sm rounded-2xl shadow-2xl p-6 md:p-8">
-        
-        <header class="text-center mb-6">
-            <div class="flex justify-center items-center gap-4">
-                <h1 class="text-4xl md:text-5xl font-bold clash-font text-yellow-400 tracking-wider">Wer bin ich?</h1>
-                <button id="statsButton" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-transform transform hover:scale-105">Statistik</button>
-            </div>
-            <p class="text-lg text-gray-300 mt-1">Clash Royale Edition</p>
-            <p id="attemptCounter" class="text-xl mt-2 text-gray-400">Versuche: 0</p>
-        </header>
-
-        <main class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            <!-- Linke Spalte: Kartenbild -->
-            <div class="md:col-span-1 flex flex-col items-center justify-center bg-gray-900 bg-opacity-50 p-6 rounded-xl">
-                <img id="cardImage" src="https://placehold.co/200x240/2d3748/e2e8f0?text=?" alt="Unbekannte Karte" class="w-48 h-auto rounded-lg shadow-lg" onerror="this.onerror=null;this.src='https://placehold.co/200x240/2d3748/e2e8f0?text=Bild%20Fehler';">
-                <p id="cardName" class="mt-4 text-2xl font-bold clash-font h-8"></p>
-            </div>
-
-            <!-- Rechte Spalte: Hinweise und Steuerung -->
-            <div class="md:col-span-2">
-                <!-- Grid für die Hinweise -->
-                <div id="hintsGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                    <!-- Hint-Karten werden hier per JS eingefügt -->
-                </div>
-                
-                <!-- Eingabebereich mit Autocomplete -->
-                <div class="relative">
-                    <div class="flex flex-col sm:flex-row gap-3">
-                        <input type="text" id="guessInput" placeholder="Kartennamen eingeben..." class="flex-grow bg-gray-700 border-2 border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-                        <button id="guessButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md">
-                            Raten!
-                        </button>
-                    </div>
-                    <div id="autocomplete-list" class="absolute z-10 w-full sm:w-auto sm:max-w-xs bg-gray-700 border border-gray-600 rounded-b-lg max-h-48 overflow-y-auto hidden"></div>
-                </div>
-                <div id="message" class="text-center mt-4 h-6 font-semibold"></div>
-
-                <!-- Nächste Karte Button -->
-                <button id="nextButton" class="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md hidden">
-                    Nächste Karte
-                </button>
-            </div>
-        </main>
-        
+    <!-- Overlays -->
+    <div id="achievementToast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-yellow-500 text-gray-900 px-6 py-3 rounded-lg shadow-lg text-center hidden">
+        <p class="font-bold">Erfolg freigeschaltet!</p>
+        <p id="achievementToastName"></p>
+    </div>
+    <div id="countdownOverlay" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <h1 id="countdownText" class="text-9xl font-bold clash-font text-yellow-400">3</h1>
     </div>
 
-    <!-- Statistik Modal -->
-    <div id="statsModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden">
-        <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg p-6 relative border-2 border-purple-500">
+
+    <div id="mainContainer" class="w-full max-w-4xl mx-auto bg-gray-800 bg-opacity-80 backdrop-blur-sm rounded-2xl shadow-2xl p-6 md:p-8">
+        
+        <!-- Mode Selection Screen -->
+        <div id="modeSelection">
+            <header class="text-center mb-8">
+                <h1 class="text-4xl md:text-5xl font-bold clash-font text-yellow-400 tracking-wider">Wer bin ich?</h1>
+                <p class="text-lg text-gray-300 mt-1">Clash Royale Edition</p>
+            </header>
+            <div class="text-center mb-8">
+                <h2 class="text-2xl clash-font">Wähle einen Spielmodus</h2>
+            </div>
+            <div class="flex flex-col md:flex-row justify-center items-center gap-4">
+                <button id="startClassic" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg transition-transform transform hover:scale-105 shadow-md text-lg">
+                    Klassischer Modus
+                </button>
+                <button id="startTimeAttack" class="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-8 rounded-lg transition-transform transform hover:scale-105 shadow-md text-lg">
+                    Time Attack (2 Min)
+                </button>
+            </div>
+             <div class="flex justify-center items-center gap-4 mt-12">
+                <button id="statsButton" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-transform transform hover:scale-105">Statistik</button>
+                <button id="achievementsButton" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-transform transform hover:scale-105">Erfolge</button>
+            </div>
+        </div>
+
+        <!-- Game Container -->
+        <div id="gameContainer" class="hidden">
+            <header class="text-center mb-6 relative">
+                 <button id="backToMenuButton" class="absolute left-0 top-0 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-transform transform hover:scale-105">&lt; Menü</button>
+                <h1 id="gameTitle" class="text-3xl md:text-4xl font-bold clash-font text-yellow-400 tracking-wider">Klassischer Modus</h1>
+                <p id="attemptCounter" class="text-xl mt-2 text-gray-400">Versuche: 0</p>
+                <p id="timer" class="text-2xl mt-2 text-green-400 font-mono hidden">02:00</p>
+            </header>
+            <main class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-1 flex flex-col items-center justify-center bg-gray-900 bg-opacity-50 p-6 rounded-xl">
+                    <img id="cardImage" src="https://placehold.co/200x240/2d3748/e2e8f0?text=?" alt="Unbekannte Karte" class="w-48 h-auto rounded-lg shadow-lg" onerror="this.onerror=null;this.src='https://placehold.co/200x240/2d3748/e2e8f0?text=Bild%20Fehler';">
+                    <p id="cardName" class="mt-4 text-2xl font-bold clash-font h-8"></p>
+                </div>
+                <div class="md:col-span-2">
+                    <div id="hintsGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6"></div>
+                    <div class="relative">
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <input type="text" id="guessInput" placeholder="Kartennamen eingeben..." class="flex-grow bg-gray-700 border-2 border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <button id="guessButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md">Raten!</button>
+                        </div>
+                        <div id="autocomplete-list" class="absolute z-10 w-full sm:w-auto sm:max-w-xs bg-gray-700 border border-gray-600 rounded-b-lg max-h-48 overflow-y-auto hidden"></div>
+                    </div>
+                    <div id="message" class="text-center mt-4 h-6 font-semibold"></div>
+                    <button id="nextButton" class="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md hidden">Nächste Karte</button>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Modals -->
+    <div id="statsModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-20">
+        <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl p-6 relative border-2 border-purple-500">
             <button id="closeStatsButton" class="absolute top-2 right-4 text-gray-400 hover:text-white">&times;</button>
-            <h2 class="text-2xl font-bold clash-font text-center mb-4 text-yellow-400">Statistik der letzten 10 Runden</h2>
-            <div class="overflow-y-auto max-h-80">
-                <table class="w-full text-left">
-                    <thead>
-                        <tr class="border-b border-gray-600">
-                            <th class="p-2">Karte</th>
-                            <th class="p-2 text-center">Versuche</th>
-                            <th class="p-2 text-center">Aufgedeckte Hinweise</th>
-                        </tr>
-                    </thead>
-                    <tbody id="statsTBody">
-                        <!-- Stats rows will be inserted here -->
-                    </tbody>
-                </table>
+            <h2 class="text-2xl font-bold clash-font text-center mb-4 text-yellow-400">Spieler-Statistiken</h2>
+            
+            <div id="noStatsMessage" class="hidden text-center col-span-full py-8">
+                <p class="text-gray-400">Du musst erst eine Runde spielen, um Statistiken zu sehen.</p>
+            </div>
+
+            <div id="statsDataContainer" class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-h-[80vh] overflow-y-auto p-2">
+                <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-lg font-bold mb-2 text-center">Gesamtleistung</h3>
+                        <div class="bg-gray-700 p-4 rounded-lg">
+                           <p><strong>Durchschn. Versuche:</strong> <span id="avgAttempts">N/A</span></p>
+                           <p><strong>Durchschn. Hinweise:</strong> <span id="avgHints">N/A</span></p>
+                           <p><strong>Meistgenutzter Hinweis:</strong> <span id="mostUsedHint">N/A</span></p>
+                           <p><strong>Angstgegner:</strong> <span id="angstgegnerType">N/A</span></p>
+                        </div>
+                    </div>
+                     <div>
+                        <h3 class="text-lg font-bold mb-2 text-center">Letzte Time Attack Runde</h3>
+                        <div id="timeAttackHistoryContainer" class="overflow-x-auto h-40">
+                             <table class="w-full text-left text-sm">
+                                <thead><tr class="border-b border-gray-600"><th class="p-2">Karte</th><th class="p-2 text-center">Versuche</th><th class="p-2 text-center">Hinweise</th></tr></thead>
+                                <tbody id="taHistoryTBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                     <h3 class="text-lg font-bold mb-2 mt-4 text-center">Leistung nach Kartentyp</h3>
+                     <canvas id="typePerformanceChart"></canvas>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold mb-2 mt-4 text-center">Letzte 10 Runden (Klassisch)</h3>
+                    <div class="overflow-x-auto h-64">
+                        <table class="w-full text-left text-sm">
+                            <thead><tr class="border-b border-gray-600"><th class="p-2">Karte</th><th class="p-2 text-center">Versuche</th><th class="p-2 text-center">Hinweise</th></tr></thead>
+                            <tbody id="statsTBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="achievementsModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-20">
+         <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-xl p-6 relative border-2 border-yellow-500">
+            <button id="closeAchievementsButton" class="absolute top-2 right-4 text-gray-400 hover:text-white">&times;</button>
+            <h2 class="text-2xl font-bold clash-font text-center mb-4 text-yellow-400">Erfolge</h2>
+            <div id="achievementsList" class="space-y-3 max-h-[70vh] overflow-y-auto pr-2"></div>
+        </div>
+    </div>
+    
+    <div id="timeAttackRulesModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-30">
+        <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-8 text-center relative border-2 border-purple-500">
+            <h2 class="text-3xl font-bold clash-font text-center mb-4 text-yellow-400">Time Attack Regeln</h2>
+            <ul class="text-left space-y-3 mb-8">
+                <li>- Du hast <strong>2 Minuten</strong> Zeit, so viele Karten wie möglich zu erraten.</li>
+                <li>- Nach einer richtigen Antwort wird sofort die nächste Karte geladen.</li>
+                <li>- Du kannst nur <strong>alle 5 Sekunden</strong> einen neuen Hinweis aufdecken!</li>
+            </ul>
+            <button id="startTAttackConfirmed" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md">Start!</button>
+        </div>
+    </div>
+
+    <div id="timeAttackResultsModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-20">
+        <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-8 text-center relative border-2 border-purple-500">
+            <h2 class="text-3xl font-bold clash-font text-center mb-4 text-yellow-400">Zeit abgelaufen!</h2>
+            <p class="text-lg mb-6">Du hast <span id="timeAttackScore" class="font-bold text-2xl text-green-400">0</span> Karten richtig erraten!</p>
+            <div class="flex flex-col gap-4">
+                <button id="playAgainTimeAttack" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md">Nochmal spielen</button>
+                <button id="backToMenuFromResults" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md">Zurück zum Menü</button>
             </div>
         </div>
     </div>
 
 
     <script>
-        const arenaNames = {
-            0: "Ausbildungslager", 1: "Koboldstadion", 2: "Knochengrube", 3: "Barbarenschüssel", 4: "P.E.K.K.A.s Spielhaus", 5: "Zaubertal", 6: "Bauarbeiter-Werkstatt", 7: "Königliche Arena", 8: "Gipfel der Eismagier", 9: "Dschungel-Arena", 10: "Schweineberg", 11: "Elektrotal", 12: "Schaurige Stadt", 13: "Spitzbubenversteck", 14: "Berg der Urtümer", 15: "Die große Mine"
-        };
-        
-        const cardData = [
-            // Arena 0
-            { name: "Pfeile", image: "https://cdn.royaleapi.com/static/img/cards-150/arrows.png", rarity: "Gewöhnlich", elixir: 3, targets: "Luft & Boden", type: "Zauber", range: "4 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 0, counter: "N/A" },
-            { name: "Bomber", image: "https://cdn.royaleapi.com/static/img/cards-150/bomber.png", rarity: "Gewöhnlich", elixir: 2, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "4.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 0, counter: "Der Log" },
-            { name: "Bogenschützen", image: "https://cdn.royaleapi.com/static/img/cards-150/archers.png", rarity: "Gewöhnlich", elixir: 3, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "5 Kacheln", preferredTarget: "Nein (Alles)", arena: 0, counter: "Pfeile" },
-            { name: "Ritter", image: "https://cdn.royaleapi.com/static/img/cards-150/knight.png", rarity: "Gewöhnlich", elixir: 3, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 0, counter: "Skelettarmee" },
-            { name: "Feuerball", image: "https://cdn.royaleapi.com/static/img/cards-150/fireball.png", rarity: "Selten", elixir: 4, targets: "Luft & Boden", type: "Zauber", range: "2.5 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 0, counter: "N/A" },
-            { name: "Mini P.E.K.K.A.", aliases: ["mini pekka"], image: "https://cdn.royaleapi.com/static/img/cards-150/mini-pekka.png", rarity: "Selten", elixir: 4, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 0, counter: "Wächter" },
-            { name: "Musketierin", image: "https://cdn.royaleapi.com/static/img/cards-150/musketeer.png", rarity: "Selten", elixir: 4, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "6 Kacheln", preferredTarget: "Nein (Alles)", arena: 0, counter: "Ritter" },
-            { name: "Riese", image: "https://cdn.royaleapi.com/static/img/cards-150/giant.png", rarity: "Selten", elixir: 5, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 0, counter: "Infernoturm" },
-            { name: "Prinz", image: "https://cdn.royaleapi.com/static/img/cards-150/prince.png", rarity: "Episch", elixir: 5, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf (Sturmangriff)", preferredTarget: "Nein (Alles)", arena: 0, counter: "Skelette" },
-            { name: "Drachenbaby", image: "https://cdn.royaleapi.com/static/img/cards-150/baby-dragon.png", rarity: "Episch", elixir: 4, targets: "Luft & Boden", type: "Truppe", unitType: "Lufttruppe", range: "3.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 0, counter: "Musketierin" },
-            { name: "Skelettarmee", image: "https://cdn.royaleapi.com/static/img/cards-150/skeleton-army.png", rarity: "Episch", elixir: 3, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf (Schwarm)", preferredTarget: "Nein (Alles)", arena: 0, counter: "Knall" },
-            { name: "Hexe", image: "https://cdn.royaleapi.com/static/img/cards-150/witch.png", rarity: "Episch", elixir: 5, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "5 Kacheln", preferredTarget: "Nein (Alles)", arena: 0, counter: "Valkyrie" },
-            // Arena 1
-            { name: "Kobolde", image: "https://cdn.royaleapi.com/static/img/cards-150/goblins.png", rarity: "Gewöhnlich", elixir: 2, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 1, counter: "Der Log" },
-            { name: "Speerkobolde", image: "https://cdn.royaleapi.com/static/img/cards-150/spear-goblins.png", rarity: "Gewöhnlich", elixir: 2, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "5 Kacheln", preferredTarget: "Nein (Alles)", arena: 1, counter: "Pfeile" },
-            { name: "Koboldhütte", image: "https://cdn.royaleapi.com/static/img/cards-150/goblin-hut.png", rarity: "Selten", elixir: 5, targets: "N/A", type: "Gebäude", range: "N/A", preferredTarget: "N/A", arena: 1, counter: "Blitz" },
-            { name: "Walküre", aliases: ["valkyrie"], image: "https://cdn.royaleapi.com/static/img/cards-150/valkyrie.png", rarity: "Selten", elixir: 4, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf (Wirbel)", preferredTarget: "Nein (Alles)", arena: 1, counter: "Lakaien" },
-            { name: "Koboldfass", image: "https://cdn.royaleapi.com/static/img/cards-150/goblin-barrel.png", rarity: "Episch", elixir: 3, targets: "Boden", type: "Zauber", range: "1.5 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 1, counter: "Knall" },
-            { name: "Blitz", image: "https://cdn.royaleapi.com/static/img/cards-150/lightning.png", rarity: "Episch", elixir: 6, targets: "Luft & Boden", type: "Zauber", range: "3.5 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 1, counter: "N/A" },
-            // Arena 2
-            { name: "Skelette", image: "https://cdn.royaleapi.com/static/img/cards-150/skeletons.png", rarity: "Gewöhnlich", elixir: 1, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 2, counter: "Alle Zauber" },
-            { name: "Lakaien", image: "https://cdn.royaleapi.com/static/img/cards-150/minions.png", rarity: "Gewöhnlich", elixir: 3, targets: "Luft & Boden", type: "Truppe", unitType: "Lufttruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 2, counter: "Pfeile" },
-            { name: "Grabstein", image: "https://cdn.royaleapi.com/static/img/cards-150/tombstone.png", rarity: "Selten", elixir: 3, targets: "N/A", type: "Gebäude", range: "N/A", preferredTarget: "N/A", arena: 2, counter: "Magier" },
-            { name: "Bombenturm", image: "https://cdn.royaleapi.com/static/img/cards-150/bomb-tower.png", rarity: "Selten", elixir: 4, targets: "Boden", type: "Gebäude", range: "6 Kacheln", preferredTarget: "Nein (Alles)", arena: 2, counter: "Lakaienhorde" },
-            { name: "Riesenskelett", image: "https://cdn.royaleapi.com/static/img/cards-150/giant-skeleton.png", rarity: "Episch", elixir: 6, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 2, counter: "Hexe" },
-            { name: "Ballon", image: "https://cdn.royaleapi.com/static/img/cards-150/balloon.png", rarity: "Episch", elixir: 5, targets: "Gebäude", type: "Truppe", unitType: "Lufttruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 2, counter: "Fledermäuse" },
-            // Arena 3
-            { name: "Kanone", image: "https://cdn.royaleapi.com/static/img/cards-150/cannon.png", rarity: "Gewöhnlich", elixir: 3, targets: "Boden", type: "Gebäude", range: "5.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 3, counter: "Blitz" },
-            { name: "Barbaren", image: "https://cdn.royaleapi.com/static/img/cards-150/barbarians.png", rarity: "Gewöhnlich", elixir: 5, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 3, counter: "Feuerball" },
-            { name: "Barbarenhütte", image: "https://cdn.royaleapi.com/static/img/cards-150/barbarian-hut.png", rarity: "Selten", elixir: 7, targets: "N/A", type: "Gebäude", range: "N/A", preferredTarget: "N/A", arena: 3, counter: "Bowler" },
-            { name: "Barbarenfass", aliases: ["kampfholz", "barbarian barrel"], image: "https://cdn.royaleapi.com/static/img/cards-150/barbarian-barrel.png", rarity: "Episch", elixir: 2, targets: "Boden", type: "Zauber", range: "Rollt 4.9 Kacheln", preferredTarget: "Nein (Alles)", arena: 3, counter: "N/A" },
-            { name: "Golem", image: "https://cdn.royaleapi.com/static/img/cards-150/golem.png", rarity: "Episch", elixir: 8, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 3, counter: "Infernoturm" },
-            { name: "X-Bogen", aliases: ["x bogen", "xbogen"], image: "https://cdn.royaleapi.com/static/img/cards-150/x-bow.png", rarity: "Episch", elixir: 6, targets: "Boden", type: "Gebäude", range: "11.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 3, counter: "Rakete" },
-            // Arena 4
-            { name: "Tesla", image: "https://cdn.royaleapi.com/static/img/cards-150/tesla.png", rarity: "Gewöhnlich", elixir: 4, targets: "Luft & Boden", type: "Gebäude", range: "5.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 4, counter: "Erdbeben" },
-            { name: "Lakaienhorde", image: "https://cdn.royaleapi.com/static/img/cards-150/minion-horde.png", rarity: "Gewöhnlich", elixir: 5, targets: "Luft & Boden", type: "Truppe", unitType: "Lufttruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 4, counter: "Pfeile" },
-            { name: "Infernoturm", image: "https://cdn.royaleapi.com/static/img/cards-150/inferno-tower.png", rarity: "Selten", elixir: 5, targets: "Luft & Boden", type: "Gebäude", range: "6 Kacheln", preferredTarget: "Nein (Alles)", arena: 4, counter: "Elektromagier" },
-            { name: "Schweinereiter", image: "https://cdn.royaleapi.com/static/img/cards-150/hog-rider.png", rarity: "Selten", elixir: 4, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 4, counter: "Tornado" },
-            { name: "Frost", image: "https://cdn.royaleapi.com/static/img/cards-150/freeze.png", rarity: "Episch", elixir: 4, targets: "Luft & Boden", type: "Zauber", range: "3 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 4, counter: "N/A" },
-            { name: "P.E.K.K.A.", aliases: ["pekka"], image: "https://cdn.royaleapi.com/static/img/cards-150/pekka.png", rarity: "Episch", elixir: 7, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 4, counter: "Infernodrache" },
-            { name: "Lavahund", image: "https://cdn.royaleapi.com/static/img/cards-150/lava-hound.png", rarity: "Legendär", elixir: 7, targets: "Gebäude", type: "Truppe", unitType: "Lufttruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 4, counter: "Henker" },
-            // Arena 5
-            { name: "Knall", image: "https://cdn.royaleapi.com/static/img/cards-150/zap.png", rarity: "Gewöhnlich", elixir: 2, targets: "Luft & Boden", type: "Zauber", range: "2.5 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 5, counter: "N/A" },
-            { name: "Feuergeist", image: "https://cdn.royaleapi.com/static/img/cards-150/fire-spirit.png", rarity: "Gewöhnlich", elixir: 1, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "2 Kacheln (Sprung)", preferredTarget: "Nein (Alles)", arena: 5, counter: "Speerkobolde" },
-            { name: "Magier", image: "https://cdn.royaleapi.com/static/img/cards-150/wizard.png", rarity: "Selten", elixir: 5, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "5.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 5, counter: "Blitz" },
-            { name: "Ofen", image: "https://cdn.royaleapi.com/static/img/cards-150/furnace.png", rarity: "Selten", elixir: 4, targets: "N/A", type: "Gebäude", range: "N/A", preferredTarget: "N/A", arena: 5, counter: "Gift" },
-            { name: "Gift", image: "https://cdn.royaleapi.com/static/img/cards-150/poison.png", rarity: "Episch", elixir: 4, targets: "Luft & Boden", type: "Zauber", range: "3.5 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 5, counter: "N/A" },
-            { name: "Spiegel", image: "https://cdn.royaleapi.com/static/img/cards-150/mirror.png", rarity: "Episch", elixir: "+1", targets: "N/A", type: "Zauber", range: "N/A", preferredTarget: "N/A", arena: 5, counter: "N/A" },
-            { name: "Eismagier", image: "https://cdn.royaleapi.com/static/img/cards-150/ice-wizard.png", rarity: "Legendär", elixir: 3, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "5.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 5, counter: "Feuerball" },
-            // Arena 6
-            { name: "Minenwerfer", image: "https://cdn.royaleapi.com/static/img/cards-150/mortar.png", rarity: "Gewöhnlich", elixir: 4, targets: "Boden", type: "Gebäude", range: "11.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 6, counter: "Schweinereiter" },
-            { name: "Elixiersammler", image: "https://cdn.royaleapi.com/static/img/cards-150/elixir-collector.png", rarity: "Selten", elixir: 6, targets: "N/A", type: "Gebäude", range: "N/A", preferredTarget: "N/A", arena: 6, counter: "Rakete" },
-            { name: "Rakete", image: "https://cdn.royaleapi.com/static/img/cards-150/rocket.png", rarity: "Selten", elixir: 6, targets: "Luft & Boden", type: "Zauber", range: "2 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 6, counter: "N/A" },
-            { name: "Bowler", image: "https://cdn.royaleapi.com/static/img/cards-150/bowler.png", rarity: "Episch", elixir: 5, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "5 Kacheln", preferredTarget: "Nein (Alles)", arena: 6, counter: "Infernodrache" },
-            { name: "Funki", image: "https://cdn.royaleapi.com/static/img/cards-150/sparky.png", rarity: "Legendär", elixir: 6, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "4.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 6, counter: "Elektrogeist" },
-             // Arena 7
-            { name: "Königsriese", image: "https://cdn.royaleapi.com/static/img/cards-150/royal-giant.png", rarity: "Gewöhnlich", elixir: 6, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "5 Kacheln", preferredTarget: "Türme & Gebäude", arena: 7, counter: "Kanone" },
-            { name: "Elitebarbaren", image: "https://cdn.royaleapi.com/static/img/cards-150/elite-barbarians.png", rarity: "Gewöhnlich", elixir: 6, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 7, counter: "Bowler" },
-            { name: "Drei Musketierinnen", image: "https://cdn.royaleapi.com/static/img/cards-150/three-musketeers.png", rarity: "Selten", elixir: 9, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "6 Kacheln", preferredTarget: "Nein (Alles)", arena: 7, counter: "Feuerball" },
-            { name: "Dunkler Prinz", image: "https://cdn.royaleapi.com/static/img/cards-150/dark-prince.png", rarity: "Episch", elixir: 4, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf (Schild)", preferredTarget: "Nein (Alles)", arena: 7, counter: "Lakaien" },
-            { name: "Prinzessin", image: "https://cdn.royaleapi.com/static/img/cards-150/princess.png", rarity: "Legendär", elixir: 3, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "9 Kacheln", preferredTarget: "Nein (Alles)", arena: 7, counter: "Der Log" },
-            // Arena 8
-            { name: "Eisgeist", image: "https://cdn.royaleapi.com/static/img/cards-150/ice-spirit.png", rarity: "Gewöhnlich", elixir: 1, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "2.5 Kacheln (Sprung)", preferredTarget: "Nein (Alles)", arena: 8, counter: "Skelette" },
-            { name: "Eisgolem", image: "https://cdn.royaleapi.com/static/img/cards-150/ice-golem.png", rarity: "Selten", elixir: 2, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 8, counter: "Mini P.E.K.K.A." },
-            { name: "Klonzauber", image: "https://cdn.royaleapi.com/static/img/cards-150/clone.png", rarity: "Episch", elixir: 3, targets: "Luft & Boden", type: "Zauber", range: "3 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 8, counter: "N/A" },
-            { name: "Holzfäller", image: "https://cdn.royaleapi.com/static/img/cards-150/lumberjack.png", rarity: "Legendär", elixir: 4, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 8, counter: "Wächter" },
-            // Arena 9
-            { name: "Koboldgang", image: "https://cdn.royaleapi.com/static/img/cards-150/goblin-gang.png", rarity: "Gewöhnlich", elixir: 3, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "Gemischt", preferredTarget: "Nein (Alles)", arena: 9, counter: "Der Log" },
-            { name: "Flugmaschine", image: "https://cdn.royaleapi.com/static/img/cards-150/flying-machine.png", rarity: "Selten", elixir: 4, targets: "Luft & Boden", type: "Truppe", unitType: "Lufttruppe", range: "6 Kacheln", preferredTarget: "Nein (Alles)", arena: 9, counter: "Feuerball" },
-            { name: "Banditin", image: "https://cdn.royaleapi.com/static/img/cards-150/bandit.png", rarity: "Legendär", elixir: 3, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf (Ansturm)", preferredTarget: "Nein (Alles)", arena: 9, counter: "Skelette" },
-             // Arena 10
-            { name: "Königsferkel", image: "https://cdn.royaleapi.com/static/img/cards-150/royal-hogs.png", rarity: "Selten", elixir: 5, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 10, counter: "Megaritter" },
-            { name: "Rammbock", image: "https://cdn.royaleapi.com/static/img/cards-150/battle-ram.png", rarity: "Selten", elixir: 4, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 10, counter: "Tesla" },
-            // Arena 11
-            { name: "Zappys", image: "https://cdn.royaleapi.com/static/img/cards-150/zappies.png", rarity: "Selten", elixir: 4, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "4.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 11, counter: "Feuerball" },
-            { name: "Erdbeben", image: "https://cdn.royaleapi.com/static/img/cards-150/earthquake.png", rarity: "Selten", elixir: 3, targets: "Boden", type: "Zauber", range: "3.5 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 11, counter: "N/A" },
-            { name: "Elektrodrache", image: "https://cdn.royaleapi.com/static/img/cards-150/electro-dragon.png", rarity: "Episch", elixir: 5, targets: "Luft & Boden", type: "Truppe", unitType: "Lufttruppe", range: "3.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 11, counter: "Magier" },
-            { name: "Tunnelgräber", image: "https://cdn.royaleapi.com/static/img/cards-150/miner.png", rarity: "Legendär", elixir: 3, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Global", preferredTarget: "Nein (Alles)", arena: 11, counter: "Ritter" },
-            { name: "Der Stamm", aliases: ["the log"], image: "https://cdn.royaleapi.com/static/img/cards-150/the-log.png", rarity: "Legendär", elixir: 2, targets: "Boden", type: "Zauber", range: "Rollt 10.1 Kacheln", preferredTarget: "Nein (Alles)", arena: 11, counter: "N/A" },
-            { name: "Elektromagier", image: "https://cdn.royaleapi.com/static/img/cards-150/electro-wizard.png", rarity: "Legendär", elixir: 4, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "5 Kacheln", preferredTarget: "Nein (Alles)", arena: 11, counter: "Feuerball" },
-            // Arena 12
-            { name: "Fledermäuse", image: "https://cdn.royaleapi.com/static/img/cards-150/bats.png", rarity: "Gewöhnlich", elixir: 2, targets: "Luft & Boden", type: "Truppe", unitType: "Lufttruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 12, counter: "Knall" },
-            { name: "Friedhof", image: "https://cdn.royaleapi.com/static/img/cards-150/graveyard.png", rarity: "Legendär", elixir: 5, targets: "Boden", type: "Zauber", range: "4 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 12, counter: "Walküre" },
+        // --- DATA ---
+        const arenaNames = { 0: "Ausbildungslager", 1: "Koboldstadion", 2: "Knochengrube", 3: "Barbarenschüssel", 4: "P.E.K.K.A.s Spielhaus", 5: "Zaubertal", 6: "Bauarbeiter-Werkstatt", 7: "Königliche Arena", 8: "Gipfel der Eismagier", 9: "Dschungel-Arena", 10: "Schweineberg", 11: "Elektrotal", 12: "Schaurige Stadt", 13: "Spitzbubenversteck", 14: "Berg der Urtümer", 15: "Die große Mine" };
+        const cardData = [ 
+            { name: "Pfeile", image: "https://cdn.royaleapi.com/static/img/cards-150/arrows.png", rarity: "Gewöhnlich", elixir: 3, targets: "Luft & Boden", type: "Zauber", range: "4 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 0, counter: "N/A" }, 
+            { name: "Bomber", image: "https://cdn.royaleapi.com/static/img/cards-150/bomber.png", rarity: "Gewöhnlich", elixir: 2, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "4.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 0, counter: "Der Log" }, 
+            { name: "Bogenschützen", image: "https://cdn.royaleapi.com/static/img/cards-150/archers.png", rarity: "Gewöhnlich", elixir: 3, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "5 Kacheln", preferredTarget: "Nein (Alles)", arena: 0, counter: "Pfeile" }, 
+            { name: "Ritter", image: "https://cdn.royaleapi.com/static/img/cards-150/knight.png", rarity: "Gewöhnlich", elixir: 3, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 0, counter: "Skelettarmee" }, 
+            { name: "Feuerball", image: "https://cdn.royaleapi.com/static/img/cards-150/fireball.png", rarity: "Selten", elixir: 4, targets: "Luft & Boden", type: "Zauber", range: "2.5 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 0, counter: "N/A" }, 
+            { name: "Mini P.E.K.K.A.", aliases: ["mini pekka"], image: "https://cdn.royaleapi.com/static/img/cards-150/mini-pekka.png", rarity: "Selten", elixir: 4, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 0, counter: "Wächter" }, 
+            { name: "Musketierin", image: "https://cdn.royaleapi.com/static/img/cards-150/musketeer.png", rarity: "Selten", elixir: 4, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "6 Kacheln", preferredTarget: "Nein (Alles)", arena: 0, counter: "Ritter" }, 
+            { name: "Riese", image: "https://cdn.royaleapi.com/static/img/cards-150/giant.png", rarity: "Selten", elixir: 5, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 0, counter: "Infernoturm" }, 
+            { name: "Prinz", image: "https://cdn.royaleapi.com/static/img/cards-150/prince.png", rarity: "Episch", elixir: 5, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf (Sturmangriff)", preferredTarget: "Nein (Alles)", arena: 0, counter: "Skelette" }, 
+            { name: "Drachenbaby", image: "https://cdn.royaleapi.com/static/img/cards-150/baby-dragon.png", rarity: "Episch", elixir: 4, targets: "Luft & Boden", type: "Truppe", unitType: "Lufttruppe", range: "3.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 0, counter: "Musketierin" }, 
+            { name: "Skelettarmee", image: "https://cdn.royaleapi.com/static/img/cards-150/skeleton-army.png", rarity: "Episch", elixir: 3, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf (Schwarm)", preferredTarget: "Nein (Alles)", arena: 0, counter: "Knall" }, 
+            { name: "Hexe", image: "https://cdn.royaleapi.com/static/img/cards-150/witch.png", rarity: "Episch", elixir: 5, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "5 Kacheln", preferredTarget: "Nein (Alles)", arena: 0, counter: "Walküre" }, 
+            { name: "Kobolde", image: "https://cdn.royaleapi.com/static/img/cards-150/goblins.png", rarity: "Gewöhnlich", elixir: 2, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 1, counter: "Der Log" }, 
+            { name: "Speerkobolde", image: "https://cdn.royaleapi.com/static/img/cards-150/spear-goblins.png", rarity: "Gewöhnlich", elixir: 2, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "5 Kacheln", preferredTarget: "Nein (Alles)", arena: 1, counter: "Pfeile" }, 
+            { name: "Koboldhütte", image: "https://cdn.royaleapi.com/static/img/cards-150/goblin-hut.png", rarity: "Selten", elixir: 5, targets: "N/A", type: "Gebäude", range: "N/A", preferredTarget: "N/A", arena: 1, counter: "Blitz" }, 
+            { name: "Walküre", aliases: ["valkyrie"], image: "https://cdn.royaleapi.com/static/img/cards-150/valkyrie.png", rarity: "Selten", elixir: 4, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf (Wirbel)", preferredTarget: "Nein (Alles)", arena: 1, counter: "Lakaien" }, 
+            { name: "Koboldfass", image: "https://cdn.royaleapi.com/static/img/cards-150/goblin-barrel.png", rarity: "Episch", elixir: 3, targets: "Boden", type: "Zauber", range: "1.5 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 1, counter: "Knall" }, 
+            { name: "Blitz", image: "https://cdn.royaleapi.com/static/img/cards-150/lightning.png", rarity: "Episch", elixir: 6, targets: "Luft & Boden", type: "Zauber", range: "3.5 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 1, counter: "N/A" }, 
+            { name: "Skelette", image: "https://cdn.royaleapi.com/static/img/cards-150/skeletons.png", rarity: "Gewöhnlich", elixir: 1, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 2, counter: "Alle Zauber" }, 
+            { name: "Lakaien", image: "https://cdn.royaleapi.com/static/img/cards-150/minions.png", rarity: "Gewöhnlich", elixir: 3, targets: "Luft & Boden", type: "Truppe", unitType: "Lufttruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 2, counter: "Pfeile" }, 
+            { name: "Grabstein", image: "https://cdn.royaleapi.com/static/img/cards-150/tombstone.png", rarity: "Selten", elixir: 3, targets: "N/A", type: "Gebäude", range: "N/A", preferredTarget: "N/A", arena: 2, counter: "Magier" }, 
+            { name: "Bombenturm", image: "https://cdn.royaleapi.com/static/img/cards-150/bomb-tower.png", rarity: "Selten", elixir: 4, targets: "Boden", type: "Gebäude", range: "6 Kacheln", preferredTarget: "Nein (Alles)", arena: 2, counter: "Lakaienhorde" }, 
+            { name: "Riesenskelett", image: "https://cdn.royaleapi.com/static/img/cards-150/giant-skeleton.png", rarity: "Episch", elixir: 6, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 2, counter: "Hexe" }, 
+            { name: "Ballon", image: "https://cdn.royaleapi.com/static/img/cards-150/balloon.png", rarity: "Episch", elixir: 5, targets: "Gebäude", type: "Truppe", unitType: "Lufttruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 2, counter: "Fledermäuse" }, 
+            { name: "Kanone", image: "https://cdn.royaleapi.com/static/img/cards-150/cannon.png", rarity: "Gewöhnlich", elixir: 3, targets: "Boden", type: "Gebäude", range: "5.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 3, counter: "Blitz" }, 
+            { name: "Barbaren", image: "https://cdn.royaleapi.com/static/img/cards-150/barbarians.png", rarity: "Gewöhnlich", elixir: 5, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 3, counter: "Feuerball" }, 
+            { name: "Barbarenhütte", image: "https://cdn.royaleapi.com/static/img/cards-150/barbarian-hut.png", rarity: "Selten", elixir: 7, targets: "N/A", type: "Gebäude", range: "N/A", preferredTarget: "N/A", arena: 3, counter: "Bowler" }, 
+            { name: "Barbarenfass", aliases: ["kampfholz", "barbarian barrel"], image: "https://cdn.royaleapi.com/static/img/cards-150/barbarian-barrel.png", rarity: "Episch", elixir: 2, targets: "Boden", type: "Zauber", range: "Rollt 4.9 Kacheln", preferredTarget: "Nein (Alles)", arena: 3, counter: "N/A" }, 
+            { name: "Golem", image: "https://cdn.royaleapi.com/static/img/cards-150/golem.png", rarity: "Episch", elixir: 8, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 3, counter: "Infernoturm" }, 
+            { name: "X-Bogen", aliases: ["x bogen", "xbogen"], image: "https://cdn.royaleapi.com/static/img/cards-150/x-bow.png", rarity: "Episch", elixir: 6, targets: "Boden", type: "Gebäude", range: "11.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 3, counter: "Rakete" }, 
+            { name: "Tesla", image: "https://cdn.royaleapi.com/static/img/cards-150/tesla.png", rarity: "Gewöhnlich", elixir: 4, targets: "Luft & Boden", type: "Gebäude", range: "5.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 4, counter: "Erdbeben" }, 
+            { name: "Lakaienhorde", image: "https://cdn.royaleapi.com/static/img/cards-150/minion-horde.png", rarity: "Gewöhnlich", elixir: 5, targets: "Luft & Boden", type: "Truppe", unitType: "Lufttruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 4, counter: "Pfeile" }, 
+            { name: "Infernoturm", image: "https://cdn.royaleapi.com/static/img/cards-150/inferno-tower.png", rarity: "Selten", elixir: 5, targets: "Luft & Boden", type: "Gebäude", range: "6 Kacheln", preferredTarget: "Nein (Alles)", arena: 4, counter: "Elektromagier" }, 
+            { name: "Schweinereiter", image: "https://cdn.royaleapi.com/static/img/cards-150/hog-rider.png", rarity: "Selten", elixir: 4, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 4, counter: "Tornado" }, 
+            { name: "Frost", image: "https://cdn.royaleapi.com/static/img/cards-150/freeze.png", rarity: "Episch", elixir: 4, targets: "Luft & Boden", type: "Zauber", range: "3 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 4, counter: "N/A" }, 
+            { name: "P.E.K.K.A.", aliases: ["pekka"], image: "https://cdn.royaleapi.com/static/img/cards-150/pekka.png", rarity: "Episch", elixir: 7, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 4, counter: "Infernodrache" }, 
+            { name: "Lavahund", image: "https://cdn.royaleapi.com/static/img/cards-150/lava-hound.png", rarity: "Legendär", elixir: 7, targets: "Gebäude", type: "Truppe", unitType: "Lufttruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 4, counter: "Henker" }, 
+            { name: "Knall", image: "https://cdn.royaleapi.com/static/img/cards-150/zap.png", rarity: "Gewöhnlich", elixir: 2, targets: "Luft & Boden", type: "Zauber", range: "2.5 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 5, counter: "N/A" }, 
+            { name: "Feuergeist", image: "https://cdn.royaleapi.com/static/img/cards-150/fire-spirit.png", rarity: "Gewöhnlich", elixir: 1, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "2 Kacheln (Sprung)", preferredTarget: "Nein (Alles)", arena: 5, counter: "Speerkobolde" }, 
+            { name: "Magier", image: "https://cdn.royaleapi.com/static/img/cards-150/wizard.png", rarity: "Selten", elixir: 5, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "5.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 5, counter: "Blitz" }, 
+            { name: "Ofen", image: "https://cdn.royaleapi.com/static/img/cards-150/furnace.png", rarity: "Selten", elixir: 4, targets: "N/A", type: "Gebäude", range: "N/A", preferredTarget: "N/A", arena: 5, counter: "Gift" }, 
+            { name: "Gift", image: "https://cdn.royaleapi.com/static/img/cards-150/poison.png", rarity: "Episch", elixir: 4, targets: "Luft & Boden", type: "Zauber", range: "3.5 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 5, counter: "N/A" }, 
+            { name: "Spiegel", image: "https://cdn.royaleapi.com/static/img/cards-150/mirror.png", rarity: "Episch", elixir: "+1", targets: "N/A", type: "Zauber", range: "N/A", preferredTarget: "N/A", arena: 5, counter: "N/A" }, 
+            { name: "Eismagier", image: "https://cdn.royaleapi.com/static/img/cards-150/ice-wizard.png", rarity: "Legendär", elixir: 3, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "5.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 5, counter: "Feuerball" }, 
+            { name: "Minenwerfer", image: "https://cdn.royaleapi.com/static/img/cards-150/mortar.png", rarity: "Gewöhnlich", elixir: 4, targets: "Boden", type: "Gebäude", range: "11.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 6, counter: "Schweinereiter" }, 
+            { name: "Elixiersammler", image: "https://cdn.royaleapi.com/static/img/cards-150/elixir-collector.png", rarity: "Selten", elixir: 6, targets: "N/A", type: "Gebäude", range: "N/A", preferredTarget: "N/A", arena: 6, counter: "Rakete" }, 
+            { name: "Rakete", image: "https://cdn.royaleapi.com/static/img/cards-150/rocket.png", rarity: "Selten", elixir: 6, targets: "Luft & Boden", type: "Zauber", range: "2 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 6, counter: "N/A" }, 
+            { name: "Bowler", image: "https://cdn.royaleapi.com/static/img/cards-150/bowler.png", rarity: "Episch", elixir: 5, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "5 Kacheln", preferredTarget: "Nein (Alles)", arena: 6, counter: "Infernodrache" }, 
+            { name: "Funki", image: "https://cdn.royaleapi.com/static/img/cards-150/sparky.png", rarity: "Legendär", elixir: 6, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "4.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 6, counter: "Elektrogeist" }, 
+            { name: "Königsriese", image: "https://cdn.royaleapi.com/static/img/cards-150/royal-giant.png", rarity: "Gewöhnlich", elixir: 6, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "5 Kacheln", preferredTarget: "Türme & Gebäude", arena: 7, counter: "Kanone" }, 
+            { name: "Elitebarbaren", image: "https://cdn.royaleapi.com/static/img/cards-150/elite-barbarians.png", rarity: "Gewöhnlich", elixir: 6, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 7, counter: "Bowler" }, 
+            { name: "Drei Musketierinnen", image: "https://cdn.royaleapi.com/static/img/cards-150/three-musketeers.png", rarity: "Selten", elixir: 9, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "6 Kacheln", preferredTarget: "Nein (Alles)", arena: 7, counter: "Feuerball" }, 
+            { name: "Dunkler Prinz", image: "https://cdn.royaleapi.com/static/img/cards-150/dark-prince.png", rarity: "Episch", elixir: 4, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf (Schild)", preferredTarget: "Nein (Alles)", arena: 7, counter: "Lakaien" }, 
+            { name: "Prinzessin", image: "https://cdn.royaleapi.com/static/img/cards-150/princess.png", rarity: "Legendär", elixir: 3, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "9 Kacheln", preferredTarget: "Nein (Alles)", arena: 7, counter: "Der Log" }, 
+            { name: "Eisgeist", image: "https://cdn.royaleapi.com/static/img/cards-150/ice-spirit.png", rarity: "Gewöhnlich", elixir: 1, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "2.5 Kacheln (Sprung)", preferredTarget: "Nein (Alles)", arena: 8, counter: "Skelette" }, 
+            { name: "Eisgolem", image: "https://cdn.royaleapi.com/static/img/cards-150/ice-golem.png", rarity: "Selten", elixir: 2, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 8, counter: "Mini P.E.K.K.A." }, 
+            { name: "Klonzauber", image: "https://cdn.royaleapi.com/static/img/cards-150/clone.png", rarity: "Episch", elixir: 3, targets: "Luft & Boden", type: "Zauber", range: "3 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 8, counter: "N/A" }, 
+            { name: "Holzfäller", image: "https://cdn.royaleapi.com/static/img/cards-150/lumberjack.png", rarity: "Legendär", elixir: 4, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 8, counter: "Wächter" }, 
+            { name: "Koboldgang", image: "https://cdn.royaleapi.com/static/img/cards-150/goblin-gang.png", rarity: "Gewöhnlich", elixir: 3, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "Gemischt", preferredTarget: "Nein (Alles)", arena: 9, counter: "Der Log" }, 
+            { name: "Flugmaschine", image: "https://cdn.royaleapi.com/static/img/cards-150/flying-machine.png", rarity: "Selten", elixir: 4, targets: "Luft & Boden", type: "Truppe", unitType: "Lufttruppe", range: "6 Kacheln", preferredTarget: "Nein (Alles)", arena: 9, counter: "Feuerball" }, 
+            { name: "Banditin", image: "https://cdn.royaleapi.com/static/img/cards-150/bandit.png", rarity: "Legendär", elixir: 3, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf (Ansturm)", preferredTarget: "Nein (Alles)", arena: 9, counter: "Skelette" }, 
+            { name: "Königsferkel", image: "https://cdn.royaleapi.com/static/img/cards-150/royal-hogs.png", rarity: "Selten", elixir: 5, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 10, counter: "Megaritter" }, 
+            { name: "Rammbock", image: "https://cdn.royaleapi.com/static/img/cards-150/battle-ram.png", rarity: "Selten", elixir: 4, targets: "Gebäude", type: "Truppe", unitType: "Bodentruppe", range: "Nahkampf", preferredTarget: "Türme & Gebäude", arena: 10, counter: "Tesla" }, 
+            { name: "Zappys", image: "https://cdn.royaleapi.com/static/img/cards-150/zappies.png", rarity: "Selten", elixir: 4, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "4.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 11, counter: "Feuerball" }, 
+            { name: "Erdbeben", image: "https://cdn.royaleapi.com/static/img/cards-150/earthquake.png", rarity: "Selten", elixir: 3, targets: "Boden", type: "Zauber", range: "3.5 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 11, counter: "N/A" }, 
+            { name: "Elektrodrache", image: "https://cdn.royaleapi.com/static/img/cards-150/electro-dragon.png", rarity: "Episch", elixir: 5, targets: "Luft & Boden", type: "Truppe", unitType: "Lufttruppe", range: "3.5 Kacheln", preferredTarget: "Nein (Alles)", arena: 11, counter: "Magier" }, 
+            { name: "Tunnelgräber", image: "https://cdn.royaleapi.com/static/img/cards-150/miner.png", rarity: "Legendär", elixir: 3, targets: "Boden", type: "Truppe", unitType: "Bodentruppe", range: "Global", preferredTarget: "Nein (Alles)", arena: 11, counter: "Ritter" }, 
+            { name: "Der Stamm", aliases: ["the log"], image: "https://cdn.royaleapi.com/static/img/cards-150/the-log.png", rarity: "Legendär", elixir: 2, targets: "Boden", type: "Zauber", range: "Rollt 10.1 Kacheln", preferredTarget: "Nein (Alles)", arena: 11, counter: "N/A" }, 
+            { name: "Elektromagier", image: "https://cdn.royaleapi.com/static/img/cards-150/electro-wizard.png", rarity: "Legendär", elixir: 4, targets: "Luft & Boden", type: "Truppe", unitType: "Bodentruppe", range: "5 Kacheln", preferredTarget: "Nein (Alles)", arena: 11, counter: "Feuerball" }, 
+            { name: "Fledermäuse", image: "https://cdn.royaleapi.com/static/img/cards-150/bats.png", rarity: "Gewöhnlich", elixir: 2, targets: "Luft & Boden", type: "Truppe", unitType: "Lufttruppe", range: "Nahkampf", preferredTarget: "Nein (Alles)", arena: 12, counter: "Knall" }, 
+            { name: "Friedhof", image: "https://cdn.royaleapi.com/static/img/cards-150/graveyard.png", rarity: "Legendär", elixir: 5, targets: "Boden", type: "Zauber", range: "4 Kacheln Radius", preferredTarget: "Nein (Alles)", arena: 12, counter: "Walküre" }
         ];
 
-        const hintCategories = [
-            { id: 'rarity', name: 'Seltenheit' },
-            { id: 'elixir', name: 'Elixierkosten' },
-            { id: 'targets', name: 'Ziele' },
-            { id: 'type', name: 'Typ' },
-            { id: 'range', name: 'Reichweite' },
-            { id: 'preferredTarget', name: 'Bevorzugtes Ziel' },
-            { id: 'arena', name: 'Arena' },
-            { id: 'counter', name: 'Counter-Karte' }
-        ];
-
-        let currentCard;
-        let shuffledCards;
-        let currentCardIndex = 0;
-        let gameActive = true;
+        // --- STATE & VARIABLES ---
+        let currentCard = {};
+        let usedCards = [];
         let attempts = 0;
+        let revealedHints = 0;
+        let hintStats = {};
         let gameHistory = [];
+        let achievements = {};
+        let myChart;
+        let currentGameMode = 'classic';
+        let timerInterval;
+        let timeAttackCorrectGuesses = 0;
+        let timeAttackSessionHistory = [];
+        let lastHintClickTime = 0;
 
-        const cardImageEl = document.getElementById('cardImage');
-        const cardNameEl = document.getElementById('cardName');
-        const hintsGridEl = document.getElementById('hintsGrid');
-        const guessInputEl = document.getElementById('guessInput');
-        const guessButtonEl = document.getElementById('guessButton');
-        const nextButtonEl = document.getElementById('nextButton');
-        const messageEl = document.getElementById('message');
-        const attemptCounterEl = document.getElementById('attemptCounter');
+        // --- DOM ELEMENTS ---
+        const guessInput = document.getElementById('guessInput');
+        const guessButton = document.getElementById('guessButton');
+        const message = document.getElementById('message');
+        const nextButton = document.getElementById('nextButton');
+        const cardImage = document.getElementById('cardImage');
+        const cardName = document.getElementById('cardName');
+        const attemptCounter = document.getElementById('attemptCounter');
+        const autocompleteList = document.getElementById('autocomplete-list');
+        const hintsGrid = document.getElementById('hintsGrid');
+        // Modals & Buttons
         const statsButton = document.getElementById('statsButton');
         const statsModal = document.getElementById('statsModal');
         const closeStatsButton = document.getElementById('closeStatsButton');
-        const statsTBody = document.getElementById('statsTBody');
-        const autocompleteListEl = document.getElementById('autocomplete-list');
+        const achievementsButton = document.getElementById('achievementsButton');
+        const achievementsModal = document.getElementById('achievementsModal');
+        const closeAchievementsButton = document.getElementById('closeAchievementsButton');
+        // Mode Selection
+        const modeSelection = document.getElementById('modeSelection');
+        const gameContainer = document.getElementById('gameContainer');
+        const startClassicButton = document.getElementById('startClassic');
+        const startTimeAttackButton = document.getElementById('startTimeAttack');
+        const backToMenuButton = document.getElementById('backToMenuButton');
+        const gameTitle = document.getElementById('gameTitle');
+        const timerEl = document.getElementById('timer');
+        // Time Attack
+        const timeAttackRulesModal = document.getElementById('timeAttackRulesModal');
+        const startTAttackConfirmed = document.getElementById('startTAttackConfirmed');
+        const timeAttackResultsModal = document.getElementById('timeAttackResultsModal');
+        const timeAttackScoreEl = document.getElementById('timeAttackScore');
+        const playAgainTimeAttackButton = document.getElementById('playAgainTimeAttack');
+        const backToMenuFromResultsButton = document.getElementById('backToMenuFromResults');
+        const countdownOverlay = document.getElementById('countdownOverlay');
+        const countdownText = document.getElementById('countdownText');
 
 
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
+        // --- ACHIEVEMENTS ---
+        const achievementsData = [
+            { id: 'rookie_guesser', name: 'Anfänger-Rater', description: 'Errate 10 Karten.', condition: stats => stats.totalGames >= 10 },
+            { id: 'veteran_guesser', name: 'Veteranen-Rater', description: 'Errate 50 Karten.', condition: stats => stats.totalGames >= 50 },
+            { id: 'legendary_hunter', name: 'Legenden-Jäger', description: 'Errate 5 legendäre Karten.', condition: stats => (stats.raritiesGuessed?.Legendär || 0) >= 5 },
+            { id: 'epic_master', name: 'Epischer Meister', description: 'Errate 10 epische Karten.', condition: stats => (stats.raritiesGuessed?.Episch || 0) >= 10 },
+            { id: 'perfect_guess', name: 'Perfekter Treffer', description: 'Errate eine Karte ohne aufgedeckte Hinweise.', condition: stats => stats.perfectGuesses > 0 },
+            { id: 'quick_draw', name: 'Schnellzieher', description: 'Schließe eine Runde mit nur einem Versuch ab.', condition: stats => stats.oneAttemptGuesses > 0 },
+            { id: 'time_warrior', name: 'Zeit-Krieger', description: 'Errate 10 Karten im Time Attack Modus.', condition: stats => (stats.timeAttackTotalGuesses || 0) >= 10 },
+            { id: 'time_champion', name: 'Time Attack Champion', description: 'Errate 10+ Karten in EINER Time Attack Runde.', condition: stats => (stats.bestTimeAttackScore || 0) >= 10 },
+            { id: 'spell_master', name: 'Zaubermeister', description: 'Errate 10 Zauber.', condition: stats => (stats.typesGuessed?.Zauber || 0) >= 10 },
+            { id: 'building_expert', name: 'Gebäude-Experte', description: 'Errate 10 Gebäude.', condition: stats => (stats.typesGuessed?.Gebäude || 0) >= 10 },
+        ];
+
+
+        // --- CORE GAME LOGIC ---
+
+        function loadNewCard() {
+            if (usedCards.length >= cardData.length) {
+                usedCards = [];
             }
+            let newCard;
+            do {
+                newCard = cardData[Math.floor(Math.random() * cardData.length)];
+            } while (usedCards.some(card => card.name === newCard.name));
+            
+            currentCard = newCard;
+            usedCards.push(currentCard);
+
+            attempts = 0;
+            revealedHints = 0;
+            attemptCounter.textContent = `Versuche: ${attempts}`;
+            message.textContent = '';
+            guessInput.value = '';
+            guessInput.disabled = false;
+            guessButton.disabled = false;
+            cardImage.src = 'https://placehold.co/200x240/2d3748/e2e8f0?text=?';
+            cardName.textContent = '';
+            
+            createHintCards();
+
+            if (currentGameMode === 'classic') {
+                nextButton.classList.add('hidden');
+            }
+        }
+
+        function createHintCards() {
+            hintsGrid.innerHTML = '';
+            const hintCategories = [
+                { key: 'rarity', label: 'Seltenheit' },
+                { key: 'elixir', label: 'Elixier' },
+                { key: 'targets', label: 'Ziele' },
+                { key: 'type', label: 'Typ' },
+                { key: 'range', label: 'Reichweite' },
+                { key: 'preferredTarget', label: 'Bevorzugtes Ziel' },
+                { key: 'arena', label: 'Arena' },
+                { key: 'counter', label: 'Counter-Karte' }
+            ];
+
+            hintCategories.forEach(category => {
+                const flipCard = document.createElement('div');
+                flipCard.className = 'flip-card h-24 bg-gray-700 rounded-lg cursor-pointer';
+                
+                const flipCardInner = document.createElement('div');
+                flipCardInner.className = 'flip-card-inner';
+
+                const flipCardFront = document.createElement('div');
+                flipCardFront.className = 'flip-card-front bg-gray-700 hover:bg-gray-600 transition';
+                flipCardFront.innerHTML = `<span class="font-bold text-sm text-center">${category.label}</span>`;
+
+                const flipCardBack = document.createElement('div');
+                let backContent = '';
+                if (category.key === 'arena') {
+                    backContent = `${arenaNames[currentCard.arena]} (Arena ${currentCard.arena})`;
+                } else if (category.key === 'type' && currentCard.type === 'Truppe') {
+                    backContent = currentCard.unitType;
+                } else {
+                    backContent = currentCard[category.key];
+                }
+                flipCardBack.className = 'flip-card-back bg-blue-500 text-center text-xs font-semibold flex items-center justify-center';
+                flipCardBack.textContent = backContent;
+                
+                flipCardInner.appendChild(flipCardFront);
+                flipCardInner.appendChild(flipCardBack);
+                flipCard.appendChild(flipCardInner);
+
+                flipCard.addEventListener('click', () => handleHintClick(flipCard, category.label));
+                
+                hintsGrid.appendChild(flipCard);
+            });
         }
         
-        function getRarityClass(rarity) {
-            switch(rarity.toLowerCase()){
-                case 'gewöhnlich': return 'text-gray-300';
-                case 'selten': return 'text-orange-400';
-                case 'episch': return 'text-purple-400';
-                case 'legendär': return 'text-yellow-300';
-                case 'champion': return 'text-teal-300';
-                default: return 'text-white';
-            }
-        }
-
-        function updateStatsModal() {
-            statsTBody.innerHTML = ''; // Clear existing stats
-            if (gameHistory.length === 0) {
-                statsTBody.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-gray-400">Noch keine Runden abgeschlossen.</td></tr>';
-                return;
-            }
-
-            gameHistory.forEach(game => {
-                const row = document.createElement('tr');
-                row.className = 'border-b border-gray-700 last:border-b-0';
-                row.innerHTML = `
-                    <td class="p-2 font-semibold">${game.cardName}</td>
-                    <td class="p-2 text-center">${game.attempts}</td>
-                    <td class="p-2 text-center">${game.hintsUsed}</td>
-                `;
-                statsTBody.appendChild(row);
-            });
-        }
-
-        function loadCard() {
-            if (currentCardIndex >= shuffledCards.length) {
-                // Game over, restart
-                currentCardIndex = 0;
-                shuffleArray(shuffledCards);
-            }
-            
-            currentCard = shuffledCards[currentCardIndex];
-            gameActive = true;
-            attempts = 0;
-            attemptCounterEl.textContent = `Versuche: ${attempts}`;
-
-            // UI Reset
-            cardImageEl.src = 'https://placehold.co/200x240/2d3748/e2e8f0?text=?';
-            cardImageEl.alt = 'Unbekannte Karte';
-            cardImageEl.style.transform = 'scale(1)';
-            cardImageEl.style.boxShadow = 'none';
-
-            cardNameEl.textContent = '';
-            guessInputEl.value = '';
-            guessInputEl.disabled = false;
-            guessButtonEl.disabled = false;
-            messageEl.textContent = '';
-            nextButtonEl.classList.add('hidden');
-
-            hintsGridEl.innerHTML = '';
-            hintCategories.forEach(category => {
-                let hintValue = currentCard[category.id];
-                if (category.id === 'arena') {
-                     hintValue = `${arenaNames[currentCard.arena]} (Arena ${currentCard.arena})`;
+        function handleHintClick(cardElement, hintLabel) {
+            if (currentGameMode === 'timeAttack') {
+                if (Date.now() - lastHintClickTime < 5000) {
+                    return; // Cooldown active
                 }
-                if (category.id === 'type' && currentCard.unitType) {
-                    hintValue = currentCard.unitType;
-                }
+            }
+
+            if (!cardElement.classList.contains('is-flipped')) {
+                cardElement.classList.add('is-flipped');
+                revealedHints++;
                 
-                const valueIsRarity = category.id === 'rarity';
-                const rarityClass = valueIsRarity ? getRarityClass(hintValue) : '';
+                hintStats[hintLabel] = (hintStats[hintLabel] || 0) + 1;
+                saveStats();
 
-                const hintCard = `
-                    <div class="flip-card h-20 cursor-pointer group" data-hint-id="${category.id}">
-                        <div class="flip-card-inner">
-                            <div class="flip-card-front bg-gray-700 group-hover:bg-gray-600 transition">
-                                <span class="text-sm text-center font-semibold px-2">${category.name}</span>
-                            </div>
-                            <div class="flip-card-back bg-blue-800">
-                                <span class="text-sm text-center font-bold ${rarityClass}">${hintValue}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                hintsGridEl.innerHTML += hintCard;
-            });
-            
-            document.querySelectorAll('.flip-card').forEach(card => {
-                card.addEventListener('click', () => {
-                    if (gameActive) {
-                        card.classList.toggle('is-flipped');
-                    }
-                });
-            });
+                if (currentGameMode === 'timeAttack') {
+                    lastHintClickTime = Date.now();
+                    hintsGrid.classList.add('hint-cooldown');
+                    setTimeout(() => {
+                        hintsGrid.classList.remove('hint-cooldown');
+                    }, 5000);
+                }
+            }
         }
 
         function checkGuess() {
-            if (!gameActive) return;
+            if (guessInput.value.trim() === '') return;
 
-            const userGuess = guessInputEl.value.trim().toLowerCase();
-            const correctName = currentCard.name.toLowerCase();
-            const isCorrect = userGuess === correctName || (currentCard.aliases && currentCard.aliases.includes(userGuess));
-            
-            if (isCorrect) {
-                messageEl.textContent = 'Richtig!';
-                messageEl.style.color = '#48bb78'; // green-500
-                cardImageEl.src = currentCard.image;
-                cardImageEl.alt = currentCard.name;
-                cardImageEl.style.transform = 'scale(1.05)';
-                cardImageEl.style.boxShadow = '0 0 20px rgba(255, 215, 0, 0.7)';
-                
-                cardNameEl.textContent = currentCard.name;
-                cardNameEl.className = `mt-4 text-2xl font-bold clash-font h-8 ${getRarityClass(currentCard.rarity)}`;
+            const guess = guessInput.value.trim().toLowerCase();
+            const isCorrect = (currentCard.name.toLowerCase() === guess) || (currentCard.aliases && currentCard.aliases.includes(guess));
 
-                gameActive = false;
-                guessInputEl.disabled = true;
-                guessButtonEl.disabled = true;
-                nextButtonEl.classList.remove('hidden');
-                autocompleteListEl.classList.add('hidden');
-
-                
-                // Reveal all hints and record stats
-                const hints = document.querySelectorAll('.flip-card');
-                let revealedHints = 0;
-                hints.forEach(card => {
-                    if(card.classList.contains('is-flipped')){
-                        revealedHints++;
-                    } else {
-                        card.classList.add('is-flipped');
-                    }
-                });
-                
-                const result = {
-                    cardName: currentCard.name,
-                    attempts: attempts + 1,
-                    hintsUsed: revealedHints,
-                };
-                gameHistory.unshift(result);
-                if (gameHistory.length > 10) gameHistory.pop();
-
-            } else {
-                attempts++;
-                attemptCounterEl.textContent = `Versuche: ${attempts}`;
-                messageEl.textContent = 'Falsch, versuche es erneut!';
-                messageEl.style.color = '#f56565'; // red-500
-                guessInputEl.value = '';
-                // Optional: shake animation on wrong guess
-                guessInputEl.classList.add('animate-shake');
-                setTimeout(() => guessInputEl.classList.remove('animate-shake'), 500);
+            attempts++;
+            if (currentGameMode === 'classic') {
+                attemptCounter.textContent = `Versuche: ${attempts}`;
             }
+
+            if (isCorrect) {
+                message.textContent = 'Richtig!';
+                message.classList.remove('text-red-400');
+                message.classList.add('text-green-400');
+                cardImage.src = currentCard.image;
+                cardName.textContent = currentCard.name;
+                guessInput.disabled = true;
+                guessButton.disabled = true;
+                document.querySelectorAll('.flip-card').forEach(c => c.classList.add('is-flipped'));
+                
+                updateStats(); 
+
+                if (currentGameMode === 'classic') {
+                    nextButton.classList.remove('hidden');
+                } else { // Time Attack
+                    timeAttackCorrectGuesses++;
+                    timeAttackSessionHistory.push({ cardName: currentCard.name, attempts, hints: revealedHints });
+                    setTimeout(loadNewCard, 1200);
+                }
+            } else {
+                message.textContent = 'Falsch, versuch es nochmal!';
+                message.classList.add('text-red-400');
+                guessInput.classList.add('animate-shake');
+                setTimeout(() => guessInput.classList.remove('animate-shake'), 500);
+            }
+            autocompleteList.classList.add('hidden');
+        }
+
+        // --- MODE SELECTION LOGIC ---
+        function resetGameUI() {
+            gameContainer.classList.add('hidden');
+            modeSelection.classList.remove('hidden');
+            clearInterval(timerInterval);
+            timerEl.textContent = "02:00";
+        }
+
+        function startCountdown() {
+            timeAttackRulesModal.classList.add('hidden');
+            countdownOverlay.classList.remove('hidden');
+            let count = 3;
+            countdownText.textContent = count;
+            const countdownInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownText.textContent = count;
+                } else {
+                    clearInterval(countdownInterval);
+                    countdownOverlay.classList.add('hidden');
+                    // This was the error: It should call the logic that starts the game flow
+                    modeSelection.classList.add('hidden');
+                    gameContainer.classList.remove('hidden');
+                    currentGameMode = 'timeAttack';
+                    gameTitle.textContent = 'Time Attack';
+                    timerEl.classList.remove('hidden');
+                    attemptCounter.classList.add('hidden');
+                    startTimeAttackMode();
+                }
+            }, 1000);
         }
         
-        guessButtonEl.addEventListener('click', checkGuess);
-        guessInputEl.addEventListener('keyup', (event) => {
-            if (event.key === 'Enter') {
-                checkGuess();
-            }
-        });
+        function startTimeAttackMode() {
+            timeAttackCorrectGuesses = 0;
+            timeAttackSessionHistory = [];
+            lastHintClickTime = 0;
+            let timeLeft = 120; // 2 minutes in seconds
+            
+            const updateTimer = () => {
+                const minutes = Math.floor(timeLeft / 60);
+                let seconds = timeLeft % 60;
+                seconds = seconds < 10 ? '0' + seconds : seconds;
+                timerEl.textContent = `0${minutes}:${seconds}`;
 
-        guessInputEl.addEventListener('input', () => {
-            const value = guessInputEl.value;
-            autocompleteListEl.innerHTML = '';
-            if (!value || !gameActive) {
-                autocompleteListEl.classList.add('hidden');
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timeAttackScoreEl.textContent = timeAttackCorrectGuesses;
+                    timeAttackResultsModal.classList.remove('hidden');
+                    saveData('clashGuesserTimeAttackHistory', timeAttackSessionHistory); // Save session history
+                    let stats = loadStats();
+                    if (timeAttackCorrectGuesses > (stats.bestTimeAttackScore || 0)) {
+                        stats.bestTimeAttackScore = timeAttackCorrectGuesses;
+                        saveData('clashGuesserStats', stats);
+                        checkAchievements();
+                    }
+                }
+                timeLeft--;
+            };
+
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
+            loadNewCard();
+        }
+
+        function startGame(mode) {
+            if (mode === 'classic') {
+                modeSelection.classList.add('hidden');
+                gameContainer.classList.remove('hidden');
+                currentGameMode = 'classic';
+                gameTitle.textContent = 'Klassischer Modus';
+                timerEl.classList.add('hidden');
+                attemptCounter.classList.remove('hidden');
+                loadNewCard();
+            }
+            // Time attack start is now handled by startCountdown
+        }
+        
+        // --- STATS & ACHIEVEMENTS LOGIC ---
+        function updateStats() {
+            if (currentGameMode === 'classic') {
+                gameHistory.unshift({ cardName: currentCard.name, attempts: attempts, hints: revealedHints });
+                if (gameHistory.length > 10) gameHistory.pop();
+                saveData('clashGuesserHistory', gameHistory);
+            }
+
+            let stats = loadStats();
+
+            stats.totalGames = (stats.totalGames || 0) + 1;
+
+            const cardTypeKey = currentCard.unitType || currentCard.type;
+            stats.typePerformance = stats.typePerformance || {};
+            stats.typePerformance[cardTypeKey] = stats.typePerformance[cardTypeKey] || { total: 0, incorrectAttempts: 0 };
+            stats.typePerformance[cardTypeKey].total++;
+            stats.typePerformance[cardTypeKey].incorrectAttempts += (attempts - 1);
+            
+            stats.typesGuessed = stats.typesGuessed || {};
+            stats.typesGuessed[cardTypeKey] = (stats.typesGuessed[cardTypeKey] || 0) + 1;
+
+            stats.raritiesGuessed = stats.raritiesGuessed || {};
+            stats.raritiesGuessed[currentCard.rarity] = (stats.raritiesGuessed[currentCard.rarity] || 0) + 1;
+
+            if (revealedHints === 0) stats.perfectGuesses = (stats.perfectGuesses || 0) + 1;
+            if (attempts === 1) stats.oneAttemptGuesses = (stats.oneAttemptGuesses || 0) + 1;
+            
+            if (currentGameMode === 'timeAttack') {
+                stats.timeAttackTotalGuesses = (stats.timeAttackTotalGuesses || 0) + 1;
+            }
+
+            saveData('clashGuesserStats', stats);
+            checkAchievements();
+        }
+        
+        function checkAchievements() {
+            let stats = loadStats();
+            achievementsData.forEach(ach => {
+                if (!achievements[ach.id] && ach.condition(stats)) {
+                    achievements[ach.id] = true;
+                    showAchievementToast(ach.name);
+                }
+            });
+            saveData('clashGuesserAchievements', achievements);
+        }
+
+        function showAchievementToast(name) {
+            const toast = document.getElementById('achievementToast');
+            const toastName = document.getElementById('achievementToastName');
+            toastName.textContent = name;
+            toast.classList.remove('hidden');
+            toast.classList.add('toast-notification');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('toast-notification');
+            }, 4000);
+        }
+
+        function displayStats() {
+            const stats = loadStats();
+            const statsDataContainer = document.getElementById('statsDataContainer');
+            const noStatsMessage = document.getElementById('noStatsMessage');
+
+            if (!stats.totalGames || stats.totalGames === 0) {
+                statsDataContainer.classList.add('hidden');
+                noStatsMessage.classList.remove('hidden');
                 return;
             }
+            statsDataContainer.classList.remove('hidden');
+            noStatsMessage.classList.add('hidden');
 
-            const suggestions = cardData.filter(card => 
-                card.name.toLowerCase().includes(value.toLowerCase())
-            ).slice(0, 5); // Limit suggestions
-
-            if (suggestions.length > 0) {
-                suggestions.forEach(suggestion => {
-                    const item = document.createElement('div');
-                    item.className = 'p-3 hover:bg-gray-500 cursor-pointer border-b border-gray-600';
-                    item.textContent = suggestion.name;
-                    item.addEventListener('click', () => {
-                        guessInputEl.value = suggestion.name;
-                        autocompleteListEl.classList.add('hidden');
-                        guessInputEl.focus();
-                    });
-                    autocompleteListEl.appendChild(item);
+            // Classic History & Best Round
+            const tBody = document.getElementById('statsTBody');
+            tBody.innerHTML = '';
+            let bestRound = null;
+            if (gameHistory.length > 0) {
+                bestRound = gameHistory.reduce((best, current) => {
+                    if (!best) return current;
+                    if (current.attempts < best.attempts) return current;
+                    if (current.attempts === best.attempts && current.hints < best.hints) return current;
+                    return best;
                 });
-                autocompleteListEl.classList.remove('hidden');
-            } else {
-                autocompleteListEl.classList.add('hidden');
             }
-        });
+            gameHistory.forEach((game, index) => {
+                 const row = tBody.insertRow();
+                 row.innerHTML = `<td class="p-2">${game.cardName}</td><td class="p-2 text-center">${game.attempts}</td><td class="p-2 text-center">${game.hints}</td>`;
+                 if (game === bestRound) {
+                     row.classList.add('best-round');
+                 }
+            });
 
-        document.addEventListener('click', (e) => {
-            if (e.target !== guessInputEl) {
-                autocompleteListEl.classList.add('hidden');
+            // Overall Stats
+            const totalAttempts = gameHistory.reduce((sum, g) => sum + g.attempts, 0);
+            const totalHints = gameHistory.reduce((sum, g) => sum + g.hints, 0);
+            document.getElementById('avgAttempts').textContent = gameHistory.length ? (totalAttempts / gameHistory.length).toFixed(1) : 'N/A';
+            document.getElementById('avgHints').textContent = gameHistory.length ? (totalHints / gameHistory.length).toFixed(1) : 'N/A';
+            const mostUsed = Object.entries(hintStats).sort((a, b) => b[1] - a[1])[0];
+            document.getElementById('mostUsedHint').textContent = mostUsed ? mostUsed[0] : 'N/A';
+            if (stats.typePerformance) {
+                const worstType = Object.entries(stats.typePerformance).filter(([, val]) => val.total > 0).sort(([,a],[,b]) => (b.incorrectAttempts/b.total) - (a.incorrectAttempts/a.total))[0];
+                document.getElementById('angstgegnerType').textContent = worstType ? worstType[0] : 'N/A';
             }
-        });
-        
-        nextButtonEl.addEventListener('click', () => {
-            currentCardIndex++;
-            loadCard();
-        });
 
-        statsButton.addEventListener('click', () => {
-            updateStatsModal();
-            statsModal.classList.remove('hidden');
-        });
+            // Time Attack History
+            const taHistory = loadData('clashGuesserTimeAttackHistory', []);
+            const taHistoryTBody = document.getElementById('taHistoryTBody');
+            taHistoryTBody.innerHTML = '';
+            taHistory.forEach(game => {
+                const row = taHistoryTBody.insertRow();
+                row.innerHTML = `<td class="p-2">${game.cardName}</td><td class="p-2 text-center">${game.attempts}</td><td class="p-2 text-center">${game.hints}</td>`;
+            });
 
-        closeStatsButton.addEventListener('click', () => {
-            statsModal.classList.add('hidden');
-        });
+            // Chart
+            const ctx = document.getElementById('typePerformanceChart').getContext('2d');
+            const labels = ['Bodentruppe', 'Lufttruppe', 'Gebäude', 'Zauber'];
+            const data = labels.map(label => {
+                const typeData = stats.typePerformance?.[label];
+                return (typeData && typeData.total > 0) ? typeData.incorrectAttempts / typeData.total : 0;
+            });
 
-        statsModal.addEventListener('click', (e) => {
-            if (e.target === statsModal) {
-                statsModal.classList.add('hidden');
-            }
-        });
-
-        // Initialisierungsfunktion
-        function initGame() {
-            // Tailwind Animation für Shake hinzufügen
-            const style = document.createElement('style');
-            style.innerHTML = `
-                @keyframes shake {
-                    10%, 90% { transform: translate3d(-1px, 0, 0); }
-                    20%, 80% { transform: translate3d(2px, 0, 0); }
-                    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-                    40%, 60% { transform: translate3d(4px, 0, 0); }
+            if (myChart) myChart.destroy();
+            myChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Durchschn. falsche Versuche pro Typ',
+                        data,
+                        fill: true,
+                        backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                        borderColor: 'rgb(139, 92, 246)',
+                        pointBackgroundColor: 'rgb(139, 92, 246)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(139, 92, 246)'
+                    }]
+                },
+                options: {
+                    elements: { line: { borderWidth: 3 } },
+                    scales: { r: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.2)' }, angleLines: { color: 'rgba(255, 255, 255, 0.2)' }, pointLabels: { color: 'white', font: { size: 12 } } } }
                 }
-                .animate-shake {
-                    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-                }
-            `;
-            document.head.appendChild(style);
-
-            shuffledCards = [...cardData];
-            shuffleArray(shuffledCards);
-            loadCard();
-        }
-
-        // Spiel starten
-        initGame();
-
-        // Service Worker registrieren
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
             });
         }
+        
+        function displayAchievements() {
+            const listEl = document.getElementById('achievementsList');
+            listEl.innerHTML = '';
+            achievementsData.forEach(ach => {
+                const isUnlocked = achievements[ach.id];
+                const achEl = document.createElement('div');
+                achEl.className = `p-4 rounded-lg bg-gray-700 ${isUnlocked ? 'achievement-unlocked' : 'achievement-locked'}`;
+                achEl.innerHTML = `
+                    <h4 class="font-bold text-lg ${isUnlocked ? 'text-yellow-400' : ''}">${ach.name}</h4>
+                    <p class="text-sm text-gray-300">${ach.description}</p>
+                `;
+                listEl.appendChild(achEl);
+            });
+        }
+
+        // --- DATA PERSISTENCE ---
+        function saveData(key, data) {
+            try {
+                localStorage.setItem(key, JSON.stringify(data));
+            } catch (e) {
+                console.error("Failed to save data to localStorage", e);
+            }
+        }
+        function loadData(key, defaultValue = {}) {
+            try {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : defaultValue;
+            } catch (e) {
+                console.error("Failed to load data from localStorage", e);
+                return defaultValue;
+            }
+        }
+        function loadStats() { return loadData('clashGuesserStats'); }
+        function saveStats() { saveData('clashGuesserStats', { ...loadStats(), hintStats }); }
+
+
+        // --- INITIALIZATION & EVENT LISTENERS ---
+        function init() {
+            gameHistory = loadData('clashGuesserHistory', []);
+            hintStats = loadStats().hintStats || {};
+            achievements = loadData('clashGuesserAchievements', {});
+
+            // Modals
+            statsButton.addEventListener('click', () => { displayStats(); statsModal.classList.remove('hidden'); });
+            closeStatsButton.addEventListener('click', () => statsModal.classList.add('hidden'));
+            achievementsButton.addEventListener('click', () => { displayAchievements(); achievementsModal.classList.remove('hidden'); });
+            closeAchievementsButton.addEventListener('click', () => achievementsModal.classList.add('hidden'));
+
+            // Mode Selection & Start
+            startClassicButton.addEventListener('click', () => startGame('classic'));
+            startTimeAttackButton.addEventListener('click', () => timeAttackRulesModal.classList.remove('hidden'));
+            startTAttackConfirmed.addEventListener('click', startCountdown);
+
+            backToMenuButton.addEventListener('click', resetGameUI);
+            playAgainTimeAttackButton.addEventListener('click', () => { timeAttackResultsModal.classList.add('hidden'); startCountdown(); });
+            backToMenuFromResultsButton.addEventListener('click', () => { timeAttackResultsModal.classList.add('hidden'); resetGameUI(); });
+
+            // Game Controls
+            guessButton.addEventListener('click', checkGuess);
+            nextButton.addEventListener('click', loadNewCard);
+            guessInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkGuess(); });
+            guessInput.addEventListener('input', () => {
+                const value = guessInput.value.toLowerCase();
+                autocompleteList.innerHTML = '';
+                if (!value) {
+                    autocompleteList.classList.add('hidden');
+                    return;
+                }
+                const filtered = cardData.filter(c => c.name.toLowerCase().startsWith(value)).slice(0, 5);
+                if (filtered.length > 0) {
+                    autocompleteList.classList.remove('hidden');
+                    filtered.forEach(card => {
+                        const item = document.createElement('div');
+                        item.textContent = card.name;
+                        item.className = 'p-2 cursor-pointer hover:bg-gray-600 border-b border-gray-600';
+                        item.onclick = () => {
+                            guessInput.value = card.name;
+                            autocompleteList.classList.add('hidden');
+                        };
+                        autocompleteList.appendChild(item);
+                    });
+                } else {
+                    autocompleteList.classList.add('hidden');
+                }
+            });
+
+             // Service Worker Registration
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('./sw.js').then(registration => {
+                        console.log('SW registered: ', registration);
+                    }).catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+                });
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', init);
+
     </script>
 </body>
 </html>
+
+
 
